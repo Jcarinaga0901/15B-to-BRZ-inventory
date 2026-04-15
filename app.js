@@ -135,17 +135,12 @@ let pendingImageUploads = {}; // key -> base64 data for images to upload
 
 // ======================== INIT & AUTH ========================
 document.addEventListener('DOMContentLoaded', () => {
-    const savedPin = sessionStorage.getItem('authPin');
-    if (!savedPin) {
-        // No PIN saved, show login modal
-        document.getElementById('app').style.display = 'none';
-        setupLogin();
-    } else {
-        // Assume valid, load app. Backend will reject if changed.
-        document.getElementById('loginOverlay').style.display = 'none';
-        document.getElementById('app').style.display = 'block';
-        initApp();
-    }
+    // Automatically set the default PIN ('123456' as defined in Code.gs)
+    // and skip the login screen for immediate access.
+    sessionStorage.setItem('authPin', '123456');
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    initApp();
 });
 
 function setupLogin() {
