@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="15B to BRZ Warehouse Inventory Management System — Track documents, figurines, boxes, and warehouse items with Google Sheets integration.">
+    <title>15B to BRZ Inventory Management</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <link rel="stylesheet" href="index.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- PWA / Mobile App Meta Tags -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="BRZ Inventory">
+    <link rel="apple-touch-icon" href="icon-512.png">
+</head>
+<body>
+    <!-- Login Overlay -->
+    <div id="loginOverlay" class="login-overlay">
+        <div class="login-modal">
+            <div class="login-icon">
+                <span class="material-icons-round">lock</span>
+            </div>
+            <h2>System Secured</h2>
+            <p>Please enter the security PIN to access the database.</p>
+            <div class="pin-input-group">
+                <input type="password" id="authPinInput" placeholder="••••••" maxlength="20" />
+                <button class="btn btn-primary" id="btnLoginSubmit">
+                    <span class="material-icons-round">login</span>
+                </button>
+            </div>
+            <div id="loginErrorMsg" class="login-error" style="display:none;">Incorrect PIN. Try again.</div>
+        </div>
+    </div>
+
+    <div id="app" style="display:none;">
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="spinner-container">
+            <div class="spinner"></div>
+            <p>Loading Inventory...</p>
+        </div>
+    </div>
+
+    <!-- Setup Modal (for first-time API URL config) -->
+    <div id="setupModal" class="modal-overlay" style="display:none;">
+        <div class="modal setup-modal">
+            <div class="modal-header">
+                <span class="material-icons-round modal-icon">settings</span>
+                <h2>Connect to Google Sheets</h2>
+            </div>
+            <div class="modal-body">
+                <p class="setup-desc">Paste your Google Apps Script Web App URL below to connect this system to your spreadsheet.</p>
+                <div class="form-group">
+                    <label for="scriptUrlInput">Apps Script Web App URL</label>
+                    <input type="url" id="scriptUrlInput" placeholder="https://script.google.com/macros/s/...../exec" />
+                </div>
+                <div class="setup-steps">
+                    <h4>How to get the URL:</h4>
+                    <ol>
+                        <li>Open your Google Spreadsheet</li>
+                        <li>Go to <strong>Extensions → Apps Script</strong></li>
+                        <li>Paste the <code>Code.gs</code> file provided</li>
+                        <li>Click <strong>Deploy → New Deployment</strong></li>
+                        <li>Select <strong>Web App</strong>, set access to <strong>Anyone</strong></li>
+                        <li>Click <strong>Deploy</strong> and copy the URL</li>
+                    </ol>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="btnSaveUrl" class="btn btn-primary">
+                    <span class="material-icons-round">link</span>
+                    Connect
+                </button>
+                <button id="btnDemoMode" class="btn btn-ghost">
+                    <span class="material-icons-round">play_arrow</span>
+                    Try Demo Mode
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="app" class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-brand" id="brandRefresh" style="cursor: pointer;" title="Refresh Data">
+                <div class="brand-icon">
+                    <span class="material-icons-round">warehouse</span>
+                </div>
+                <div class="brand-text">
+                    <h1>15B → BRZ</h1>
+                    <span>Inventory System</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-tab="dashboard" id="navDashboard">
+                    <span class="material-icons-round">dashboard</span>
+                    <span class="nav-label">Dashboard</span>
+                </a>
+                <a href="#" class="nav-item" data-tab="all_inventory" id="navAllInventory">
+                    <span class="material-icons-round">inventory_2</span>
+                    <span class="nav-label">All Inventory</span>
+                    <span class="nav-badge" id="badgeAllInventory">0</span>
+                </a>
+                <a href="#" class="nav-item" data-tab="figurine_list" id="navFigurineList">
+                    <span class="material-icons-round">emoji_objects</span>
+                    <span class="nav-label">Figurine List</span>
+                    <span class="nav-badge" id="badgeFigurineList">0</span>
+                </a>
+                <a href="#" class="nav-item" data-tab="item_from_warehouse" id="navItemWarehouse">
+                    <span class="material-icons-round">local_shipping</span>
+                    <span class="nav-label">Warehouse Items</span>
+                    <span class="nav-badge" id="badgeItemWarehouse">0</span>
+                </a>
+                <a href="#" class="nav-item" data-tab="all_box" id="navAllBox">
+                    <span class="material-icons-round">inbox</span>
+                    <span class="nav-label">Data Information (BOX)</span>
+                    <span class="nav-badge" id="badgeAllBox">0</span>
+                </a>
+                <a href="#" class="nav-item" data-tab="lipat_bahay" id="navLipatBahay">
+                    <span class="material-icons-round">house_siding</span>
+                    <span class="nav-label">Lipat Bahay</span>
+                    <span class="nav-badge" id="badgeLipatBahay">0</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <button class="btn btn-ghost btn-sm" id="btnSettings" title="Settings">
+                    <span class="material-icons-round">settings</span>
+                </button>
+                <button class="btn btn-ghost btn-sm" id="btnRefresh" title="Refresh Data">
+                    <span class="material-icons-round">refresh</span>
+                </button>
+                <div class="connection-status" id="connectionStatus">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Demo</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <header class="topbar">
+                <button class="btn-icon sidebar-toggle" id="sidebarToggle">
+                    <span class="material-icons-round">menu</span>
+                </button>
+                <div class="topbar-search">
+                    <span class="material-icons-round">search</span>
+                    <input type="text" id="globalSearch" placeholder="Search inventory..." />
+                </div>
+                <div class="topbar-actions">
+                    <button class="btn-icon theme-toggle" id="themeToggle" title="Toggle Light/Dark Mode">
+                        <span class="material-icons-round" id="themeIcon">light_mode</span>
+                    </button>
+                    <span class="current-date" id="currentDate"></span>
+                    <button class="btn btn-primary btn-sm" id="btnAddNew">
+                        <span class="material-icons-round">add</span>
+                        <span class="btn-text">Add Item</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <!-- Dashboard Tab -->
+                <section class="tab-content active" id="tabDashboard">
+                    <div class="page-header">
+                        <h2>Dashboard Overview</h2>
+                        <p>Real-time inventory summary from Google Sheets</p>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-card stat-card-items" id="statAllInventory">
+                            <div class="stat-icon"><span class="material-icons-round">inventory_2</span></div>
+                            <div class="stat-info">
+                                <span class="stat-number">0</span>
+                                <span class="stat-label">Total Items</span>
+                            </div>
+                        </div>
+                        <div class="stat-card stat-card-figurines" id="statFigurines">
+                            <div class="stat-icon"><span class="material-icons-round">emoji_objects</span></div>
+                            <div class="stat-info">
+                                <span class="stat-number">0</span>
+                                <span class="stat-label">Figurines</span>
+                            </div>
+                        </div>
+                        <div class="stat-card stat-card-warehouse" id="statWarehouse">
+                            <div class="stat-icon"><span class="material-icons-round">local_shipping</span></div>
+                            <div class="stat-info">
+                                <span class="stat-number">0</span>
+                                <span class="stat-label">Warehouse Items</span>
+                            </div>
+                        </div>
+                        <div class="stat-card stat-card-boxes" id="statBoxes">
+                            <div class="stat-icon"><span class="material-icons-round">inbox</span></div>
+                            <div class="stat-info">
+                                <span class="stat-number">0</span>
+                                <span class="stat-label">Boxes</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 32px;">
+                        <!-- Data Graph -->
+                        <div class="dashboard-section chart-section" style="flex: 1; min-width: 300px; margin-bottom: 0;">
+                            <h3>Inventory Distribution</h3>
+                            <div class="chart-container" style="margin: 0; max-width: 100%;">
+                                <canvas id="inventoryChart"></canvas>
+                            </div>
+                                   <!-- System Setup Section -->
+                        <div class="dashboard-section" style="flex: 1; min-width: 300px; margin-bottom: 0;">
+                            <div class="section-header" style="margin-bottom: 20px;">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <span class="material-icons-round" style="color: var(--primary-color);">admin_panel_settings</span>
+                                    <h3 style="margin: 0;">System Setup</h3>
+                                </div>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 12px;">
+                                <button class="btn btn-primary" id="btnInitDatabase" style="justify-content: flex-start; background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); width: 100%;">
+                                    <span class="material-icons-round">auto_fix_high</span>
+                                    <div style="text-align: left;">
+                                        <div style="font-weight: 600;">One-Click System Init</div>
+                                        <div style="font-size: 0.7rem; opacity: 0.8; font-weight: 400;">Build all required sheets instantly</div>
+                                    </div>
+                                </button>
+                                <button class="btn btn-ghost" id="btnOpenDbCreator" style="justify-content: flex-start; border: 1px dashed var(--border-color); width: 100%;">
+                                    <span class="material-icons-round">add_chart</span>
+                                    <div style="text-align: left;">
+                                        <div style="font-weight: 600;">Create Custom Table</div>
+                                        <div style="font-size: 0.7rem; color: var(--text-secondary); font-weight: 400;">Add a new tab with custom columns</div>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-section">
+                        <h3>Quick Actions</h3>
+                        <div class="quick-actions-grid">
+                            <button class="quick-action-card" data-action="add" data-sheet="all_inventory">
+                                <span class="material-icons-round">note_add</span>
+                                <span>Add General Item</span>
+                            </button>
+                            <button class="quick-action-card" data-action="add" data-sheet="figurine_list">
+                                <span class="material-icons-round">add_photo_alternate</span>
+                                <span>Add Figurine</span>
+                            </button>
+                            <button class="quick-action-card" data-action="add" data-sheet="item_from_warehouse">
+                                <span class="material-icons-round">add_box</span>
+                                <span>Warehouse Item</span>
+                            </button>
+                            <button class="quick-action-card" data-action="add" data-sheet="all_box">
+                                <span class="material-icons-round">move_to_inbox</span>
+                                <span>Add Data Box</span>
+                            </button>
+                            <button class="quick-action-card" data-action="add" data-sheet="lipat_bahay" style="grid-column: 1 / -1;">
+                                <span class="material-icons-round">rv_hookup</span>
+                                <span>Add Lipat Bahay Item</span>
+                            </button>
+                        </div>
+                    </div>
+                </section>          </section>
+
+                <!-- All Inventory Tab -->
+                <section class="tab-content" id="tabAllInventory">
+                    <div class="page-header">
+                        <h2>All Inventory</h2>
+                        <p>Documents and general items tracking</p>
+                    </div>
+                    <div class="table-toolbar">
+                        <div class="table-search">
+                            <span class="material-icons-round">search</span>
+                            <input type="text" class="tab-search" data-sheet="all_inventory" placeholder="Search items..." />
+                        </div>
+                        <button class="btn btn-primary btn-sm" data-action="add" data-sheet="all_inventory">
+                            <span class="material-icons-round">add</span>
+                            Add General Item
+                        </button>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table" id="tableAllInventory">
+                            <thead>
+                                <tr>
+                                    <th>CODE / ID</th>
+                                    <th>NAME</th>
+                                    <th>LOCATION</th>
+                                    <th>STATUS</th>
+                                    <th>CATEGORY</th>
+                                    <th>PICTURES</th>
+                                    <th>ACTIONS</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                        <div class="empty-state" id="emptyAllInventory" style="display:none;">
+                            <span class="material-icons-round">inventory_2</span>
+                            <p>No items found</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Figurine List Tab -->
+                <section class="tab-content" id="tabFigurineList">
+                    <div class="page-header">
+                        <h2>Figurine List</h2>
+                        <p>Track all figurines and decorative items</p>
+                    </div>
+                    <div class="table-toolbar">
+                        <div class="table-search">
+                            <span class="material-icons-round">search</span>
+                            <input type="text" class="tab-search" data-sheet="figurine_list" placeholder="Search figurines..." />
+                        </div>
+                        <button class="btn btn-primary btn-sm" data-action="add" data-sheet="figurine_list">
+                            <span class="material-icons-round">add</span>
+                            Add Figurine
+                        </button>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table" id="tableFigurineList">
+                            <thead>
+                                <tr>
+                                    <th>FIGURINE</th>
+                                    <th>FIGURINE PLACE</th>
+                                    <th>FIGURINE UPDATE</th>
+                                    <th>PICTURES</th>
+                                    <th>DATE DEPARTURE</th>
+                                    <th>ACTIONS</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                        <div class="empty-state" id="emptyFigurineList" style="display:none;">
+                            <span class="material-icons-round">emoji_objects</span>
+                            <p>No figurines found</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Item From Warehouse Tab -->
+                <section class="tab-content" id="tabItemFromWarehouse">
+                    <div class="page-header">
+                        <h2>Items From Warehouse</h2>
+                        <p>Track items received from the warehouse</p>
+                    </div>
+                    <div class="table-toolbar">
+                        <div class="table-search">
+                            <span class="material-icons-round">search</span>
+                            <input type="text" class="tab-search" data-sheet="item_from_warehouse" placeholder="Search warehouse items..." />
+                        </div>
+                        <button class="btn btn-primary btn-sm" data-action="add" data-sheet="item_from_warehouse">
+                            <span class="material-icons-round">add</span>
+                            Add Warehouse Item
+                        </button>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table" id="tableItemFromWarehouse">
+                            <thead>
+                                <tr>
+                                    <th># NUMBER</th>
+                                    <th>ITEM NAME</th>
+                                    <th>STATUS</th>
+                                    <th>DEPARTURE DATE</th>
+                                    <th>DESTINATION PLACE</th>
+                                    <th>PICTURES</th>
+                                    <th>ACTIONS</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                        <div class="empty-state" id="emptyItemFromWarehouse" style="display:none;">
+                            <span class="material-icons-round">local_shipping</span>
+                            <p>No warehouse items found</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Data Information (BOX) Tab -->
+                <section class="tab-content" id="tabAllBox">
+                    <div class="page-header">
+                        <h2>Data Information (BOX)</h2>
+                        <p>Track all boxed data and general containers</p>
+                    </div>
+                    <div class="table-toolbar">
+                        <div class="table-search">
+                            <span class="material-icons-round">search</span>
+                            <input type="text" class="tab-search" data-sheet="all_box" placeholder="Search data boxes..." />
+                        </div>
+                        <button class="btn btn-primary btn-sm" data-action="add" data-sheet="all_box">
+                            <span class="material-icons-round">add</span>
+                            Add Data Box
+                        </button>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table" id="tableAllBox">
+                            <thead>
+                                <tr>
+                                    <th>BOX NUMBER</th>
+                                    <th>BOX NAME</th>
+                                    <th>BOX PLACE</th>
+                                    <th>BOX DESCRIPTION</th>
+                                    <th>BOX UPDATE</th>
+                                    <th>PICTURES</th>
+                                    <th>DATE DEPARTURE</th>
+                                    <th>COMPANY</th>
+                                    <th>ACTIONS</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                        <div class="empty-state" id="emptyAllBox" style="display:none;">
+                            <span class="material-icons-round">inbox</span>
+                            <p>No boxes found</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Lipat Bahay Tab -->
+                <section class="tab-content" id="tabLipatBahay">
+                    <div class="page-header">
+                        <h2>Lipat Bahay (Relocation)</h2>
+                        <p>Track items and boxes for moving and relocation</p>
+                    </div>
+                    <div class="table-toolbar">
+                        <div class="table-search">
+                            <span class="material-icons-round">search</span>
+                            <input type="text" class="tab-search" data-sheet="lipat_bahay" placeholder="Search moving items..." />
+                        </div>
+                        <button class="btn btn-primary btn-sm" data-action="add" data-sheet="lipat_bahay">
+                            <span class="material-icons-round">add</span>
+                            Add Moving Item
+                        </button>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table" id="tableLipatBahay">
+                            <thead>
+                                <tr>
+                                    <th>ITEM/BOX NAME</th>
+                                    <th>ORIGIN</th>
+                                    <th>DESTINATION</th>
+                                    <th>STATUS</th>
+                                    <th>NOTES</th>
+                                    <th>PICTURES</th>
+                                    <th>ACTIONS</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                        <div class="empty-state" id="emptyLipatBahay" style="display:none;">
+                            <span class="material-icons-round">house_siding</span>
+                            <p>No moving items found</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add/Edit Modal -->
+    <div id="itemModal" class="modal-overlay" style="display:none;">
+        <div class="modal item-modal">
+            <div class="modal-header">
+                <span class="material-icons-round modal-icon" id="modalIcon">add_box</span>
+                <h2 id="modalTitle">Add Item</h2>
+                <button class="btn-icon modal-close" id="btnCloseModal">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="itemForm">
+                    <input type="hidden" id="formSheet" />
+                    <input type="hidden" id="formRowIndex" />
+                    <div id="formFields" class="form-fields">
+                        <!-- Dynamically generated fields -->
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" id="btnCancelForm">Cancel</button>
+                <button type="button" class="btn btn-primary" id="btnSubmitForm">
+                    <span class="material-icons-round">save</span>
+                    Save to Spreadsheet
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="modal-overlay" style="display:none;">
+        <div class="modal delete-modal">
+            <div class="modal-header">
+                <span class="material-icons-round modal-icon danger">delete_forever</span>
+                <h2>Delete Item</h2>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this item? This will also remove it from your Google Spreadsheet.</p>
+                <p class="delete-item-name" id="deleteItemName"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" id="btnCancelDelete">Cancel</button>
+                <button class="btn btn-danger" id="btnConfirmDelete">
+                    <span class="material-icons-round">delete</span>
+                    Delete
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DB Creator Modal -->
+    <div id="dbCreatorModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <span class="material-icons-round">add_chart</span>
+                    <h3 id="modalTitle">Create Custom Table</h3>
+                </div>
+                <button class="btn-icon" id="btnCloseDbModal"><span class="material-icons-round">close</span></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="customSheetName">Table Name</label>
+                    <input type="text" id="customSheetName" placeholder="e.g. GADGETS" />
+                </div>
+                <div class="form-group">
+                    <label for="customHeaders">Column Names (Comma separated)</label>
+                    <textarea id="customHeaders" placeholder="e.g. Model, Serial Number, Warranty Exp, Notes" rows="3"></textarea>
+                    <small style="color: var(--text-secondary);">Row 1 will be set to these headers instantly.</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="btnCancelDbForm" class="btn btn-ghost">Cancel</button>
+                <button id="btnCreateCustomSheet" class="btn btn-primary">
+                    <span class="material-icons-round">send</span>
+                    Create in Spreadsheet
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Viewer Modal -->
+    <div id="imageViewerModal" class="modal-overlay" style="display:none; z-index: 2000;">
+        <div class="modal viewer-modal" style="max-width: 800px; background: transparent; border: none; box-shadow: none;">
+            <div class="viewer-header">
+                <div>
+                    <h2 id="viewerItemName" class="viewer-title">Item Name</h2>
+                    <div id="viewerItemStatus" class="viewer-status">Status</div>
+                </div>
+                <button class="btn-icon modal-close" id="btnCloseViewer" style="background: rgba(0,0,0,0.6); color: white;">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <div class="viewer-body">
+                <img id="viewerImage" src="" alt="Full view" />
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="app.js"></script>
+    <script>
+        // Register Service Worker for Mobile App Support
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Mobile App Service Worker synchronized.'))
+                    .catch(err => console.log('Service Worker failed:', err));
+            });
+        }
+    </script>
+    </div> <!-- End of #app -->
+</body>
+</html>
