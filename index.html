@@ -163,7 +163,7 @@
                         <span class="material-icons-round" id="themeIcon">light_mode</span>
                     </button>
                     <span class="current-date" id="currentDate"></span>
-                    <button class="btn btn-primary btn-sm" id="btnAddNew">
+                    <button class="btn btn-primary btn-sm btn-add-main" id="btnAddNew">
                         <span class="material-icons-round">add</span>
                         <span class="btn-text">Add Item</span>
                     </button>
@@ -462,6 +462,30 @@
                 </section>
             </div>
         </main>
+
+        <!-- Bottom Navigation for Mobile -->
+        <nav class="mobile-nav">
+            <a href="#" class="mobile-nav-item active" data-tab="dashboard">
+                <span class="material-icons-round">dashboard</span>
+                <span>Home</span>
+            </a>
+            <a href="#" class="mobile-nav-item" data-tab="all_inventory">
+                <span class="material-icons-round">inventory_2</span>
+                <span>All</span>
+            </a>
+            <a href="#" class="mobile-nav-item" data-tab="figurine_list">
+                <span class="material-icons-round">emoji_objects</span>
+                <span>Figurines</span>
+            </a>
+            <a href="#" class="mobile-nav-item" data-tab="item_from_warehouse">
+                <span class="material-icons-round">local_shipping</span>
+                <span>Warehouse</span>
+            </a>
+            <a href="#" class="mobile-nav-item" data-tab="all_box">
+                <span class="material-icons-round">inbox</span>
+                <span>Boxes</span>
+            </a>
+        </nav>
     </div>
 
     <!-- Add/Edit Modal -->
@@ -567,6 +591,12 @@
     <div id="toastContainer" class="toast-container"></div>
 
     <script src="app.js"></script>
+    
+    <!-- Mobile Floating Action Button -->
+    <button class="fab-btn" id="btnMobileAdd" title="Add New Item">
+        <span class="material-icons-round">add</span>
+    </button>
+    
     <script>
         // Register Service Worker for Mobile App Support
         if ('serviceWorker' in navigator) {

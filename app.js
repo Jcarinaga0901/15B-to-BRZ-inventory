@@ -217,6 +217,7 @@ function initApp() {
     setupModals();
     setupQuickActions();
     setupSidebarToggle();
+    setupMobileNav();
     checkConnection();
     setupDatabaseManager();
 
@@ -359,6 +360,39 @@ function switchTab(tab) {
 
     // Close sidebar on mobile
     document.getElementById('sidebar').classList.remove('open');
+    
+    // Update mobile nav UI
+    updateMobileNavStatus(tab);
+}
+
+function setupMobileNav() {
+    const mobileNavItems = document.querySelectorAll('.mobile-nav-item');
+    mobileNavItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.preventDefault();
+            const tab = item.dataset.tab;
+            switchTab(tab);
+        });
+    });
+
+    // Mobile Add Button (FAB)
+    const btnMobileAdd = document.getElementById('btnMobileAdd');
+    if (btnMobileAdd) {
+        btnMobileAdd.addEventListener('click', () => {
+            const sheet = currentTab === 'dashboard' ? 'all_inventory' : currentTab;
+            openAddModal(sheet);
+        });
+    }
+}
+
+function updateMobileNavStatus(tab) {
+    document.querySelectorAll('.mobile-nav-item').forEach(item => {
+        if (item.dataset.tab === tab) {
+            item.classList.add('active');
+        } else {
+            item.classList.remove('active');
+        }
+    });
 }
 
 function renderMasterRows(tbody, masterData) {
@@ -368,21 +402,25 @@ function renderMasterRows(tbody, masterData) {
         
         // Code
         const tdCode = document.createElement('td');
+        tdCode.dataset.label = 'CODE / ID';
         tdCode.textContent = row._displayCode;
         tr.appendChild(tdCode);
 
         // Name
         const tdName = document.createElement('td');
+        tdName.dataset.label = 'NAME';
         tdName.textContent = row._displayName;
         tr.appendChild(tdName);
 
         // Place
         const tdPlace = document.createElement('td');
+        tdPlace.dataset.label = 'LOCATION';
         tdPlace.textContent = row._displayPlace;
         tr.appendChild(tdPlace);
 
         // Status
         const tdStatus = document.createElement('td');
+        tdStatus.dataset.label = 'STATUS';
         const statusVal = row._displayStatus;
         if (statusVal.toUpperCase().includes('HINDI') || statusVal.toUpperCase().includes('NAKA ALIS')) {
              tdStatus.innerHTML = renderStatusBadge(statusVal);
@@ -395,16 +433,19 @@ function renderMasterRows(tbody, masterData) {
 
         // Category
         const tdCategory = document.createElement('td');
+        tdCategory.dataset.label = 'CATEGORY';
         tdCategory.innerHTML = `<span class="category-badge">${row._sourceName}</span>`;
         tr.appendChild(tdCategory);
 
         // Picture
         const tdPic = document.createElement('td');
+        tdPic.dataset.label = 'PICTURES';
         tdPic.innerHTML = renderPicture(row['PICTURES'] || '', row, SHEET_META[row._sourceSheet]);
         tr.appendChild(tdPic);
 
         // Actions
         const tdActions = document.createElement('td');
+        tdActions.dataset.label = 'ACTIONS';
         tdActions.innerHTML = `
             <div class="action-btns">
                 <button class="btn-icon edit" title="Edit" onclick="event.stopPropagation(); openEditModal('${row._sourceSheet}', ${row._rowIndex})">
@@ -541,6 +582,7 @@ function renderTable(sheetKey, data) {
         const tr = document.createElement('tr');
         meta.headers.forEach(header => {
             const td = document.createElement('td');
+            td.dataset.label = header;
             const value = row[header] || '';
 
             // Handle special columns
@@ -565,6 +607,7 @@ function renderTable(sheetKey, data) {
 
         // Action buttons
         const actionTd = document.createElement('td');
+        actionTd.dataset.label = 'ACTIONS';
         actionTd.innerHTML = `
             <div class="action-btns">
                 <button class="btn-icon edit" title="Edit" data-sheet="${sheetKey}" data-row="${row._rowIndex}">
@@ -1078,6 +1121,7 @@ function buildImageUploadZone(fieldKey, existingUrl) {
         preview.classList.add('has-image');
         preview.querySelector('.remove-image').addEventListener('click', () => {
             hiddenInput.value = '';
+            fileInput.value = ''; // Reset file input
             delete pendingImageUploads[fieldKey];
             preview.innerHTML = '';
             preview.classList.remove('has-image');
@@ -1171,6 +1215,7 @@ function buildImageUploadZone(fieldKey, existingUrl) {
             dropZone.style.display = 'none';
             preview.querySelector('.remove-image').addEventListener('click', () => {
                 hiddenInput.value = '';
+                fileInput.value = ''; // Reset file input
                 urlInput.value = '';
                 preview.innerHTML = '';
                 preview.classList.remove('has-image');
@@ -1213,13 +1258,21 @@ function handleImageFile(file, fieldKey, hiddenInput, preview, dropZone) {
         preview.classList.add('has-image');
         dropZone.style.display = 'none';
 
-        // Clear URL input
+        // Clear URL input and value
         const urlInput = document.getElementById(`url_${fieldKey}`);
         if (urlInput) urlInput.value = '';
+        
+        // Reset file input value after processing so the same file can be selected again
+        // fileInput.value = ''; // Wait, if I reset it here, it might lose reference? 
+        // No, reader is already finished or started. 
+        // Actually, let's reset it here so the 'change' event can trigger again for the same file.
+        const fileInput = document.getElementById(`file_${fieldKey}`);
+        if (fileInput) fileInput.value = '';
 
         // Remove button handler
         preview.querySelector('.remove-image').addEventListener('click', () => {
             hiddenInput.value = '';
+            fileInput.value = ''; // Reset file input
             delete pendingImageUploads[fieldKey];
             preview.innerHTML = '';
             preview.classList.remove('has-image');
